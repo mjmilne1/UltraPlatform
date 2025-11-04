@@ -1,5 +1,9 @@
 ﻿# Ultra Platform
 
+
+## 🔒 Security
+[![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
+
 Enterprise investment management platform combining AI-driven portfolio optimization, real-time cash management, and high-performance transaction ledger.
 
 ## 🚀 Quick Start
@@ -10,6 +14,10 @@ cd C:\UltraPlatformcd C:\UltraPlatform
 # Create comprehensive README
 @'
 # Ultra Platform
+
+
+## 🔒 Security
+[![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
 
 Enterprise investment management platform combining AI-driven portfolio optimization, real-time cash management, and high-performance transaction ledger.
 
@@ -49,3 +57,4 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for complete technical documentation.
 - Redis 7
 - Apache Kafka
 - Spring Boot, Python 3.11, PowerShell Core
+
