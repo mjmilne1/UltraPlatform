@@ -1,0 +1,26 @@
+﻿version: 2
+updates:
+  # Java/Maven for UltraLedger
+  - package-ecosystem: "maven"
+    directory: "/UltraLedger"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    
+  # Python/pip for UltraOptimiser
+  - package-ecosystem: "pip"
+    directory: "/UltraOptimiser"
+    schedule:
+      interval: "weekly"
+      
+  # Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
