@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: ultra-postgres
+    environment:
+      POSTGRES_DB: ultraplatform
+      POSTGRES_USER: ultraplatform
+      POSTGRES_PASSWORD: ultra2024
+    ports:
+      - "5432:5432"
+    networks:
+      - ultra-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ultra-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ultra-network
+
+  ultraoptimiser:
+    build:
+      context: ./UltraOptimiser
+    container_name: ultraoptimiser
+    ports:
+      - "8081:8000"
+    volumes:
+      - ./UltraOptimiser/data:/app/data
+      - ./UltraOptimiser/outputs:/app/outputs
+    environment:
+      PYTHONUNBUFFERED: 1
+    command: python examples_real_world.py
+    networks:
+      - ultra-network
+
+networks:
+  ultra-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
