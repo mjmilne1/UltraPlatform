@@ -1,0 +1,30 @@
+﻿{
+  'rl_integration': {
+    'enabled': true,
+    'strategies': {
+      'momentum': {
+        'enabled': true,
+        'backtest_return': 0.5715,
+        'risk_level': 'medium'
+      },
+      'dqn': {
+        'enabled': true,
+        'backtest_return': 0.34,
+        'risk_level': 'high'
+      },
+      'mean_reversion': {
+        'enabled': true,
+        'backtest_return': 0.25,
+        'risk_level': 'low'
+      }
+    },
+    'allocation': {
+      'max_rl_allocation': 0.30,
+      'min_cash_reserve': 0.10
+    },
+    'risk_limits': {
+      'max_drawdown': 0.20,
+      'daily_var_limit': 0.05
+    }
+  }
+}
