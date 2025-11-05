@@ -1,69 +1,24 @@
 ﻿version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: ultra-postgres
-    environment:
-      POSTGRES_DB: ultraplatform
-      POSTGRES_USER: ultraplatform
-      POSTGRES_PASSWORD: ultra2024
+  ultraplatform:
+    build: .
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - ultra-network
-
+      - '8000:8000'
+    environment:
+      - ENVIRONMENT=production
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - rabbitmq
+      
   redis:
-    image: redis:7-alpine
-    container_name: ultra-redis
+    image: redis:alpine
     ports:
-      - "6379:6379"
-    networks:
-      - ultra-network
-
-  ultraledger:
-    build:
-      context: ./UltraLedger
-    container_name: ultraledger
-    depends_on:
-      - postgres
-      - redis
+      - '6379:6379'
+      
+  rabbitmq:
+    image: rabbitmq:3-management
     ports:
-      - "8080:8080"
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
-      DB_NAME: ultraplatform
-      DB_USER: ultraplatform
-      DB_PASSWORD: ultra2024
-      REDIS_HOST: redis
-    networks:
-      - ultra-network
-
-  ultraoptimiser:
-    build:
-      context: ./UltraOptimiser
-    container_name: ultraoptimiser
-    depends_on:
-      - postgres
-      - redis
-    ports:
-      - "8081:8000"
-    volumes:
-      - ./UltraOptimiser/data:/app/data
-      - ./UltraOptimiser/outputs:/app/outputs
-    environment:
-      PYTHONUNBUFFERED: 1
-    command: python examples_real_world.py
-    networks:
-      - ultra-network
-
-networks:
-  ultra-network:
-    driver: bridge
-
-volumes:
-  postgres_data:
-  redis_data:
+      - '5672:5672'
+      - '15672:15672'
