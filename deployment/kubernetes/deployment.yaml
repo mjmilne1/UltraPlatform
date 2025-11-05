@@ -1,0 +1,78 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ultraplatform
+  labels:
+    app: ultraplatform
+    version: v2.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ultraplatform
+  template:
+    metadata:
+      labels:
+        app: ultraplatform
+    spec:
+      containers:
+      - name: ultraplatform
+        image: ultraplatform:latest
+        ports:
+        - containerPort: 8080
+          name: web
+        - containerPort: 8001
+          name: trading
+        - containerPort: 8002
+          name: portfolio
+        - containerPort: 8003
+          name: analytics
+        env:
+        - name: ULTRA_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ultra-secrets
+              key: database-url
+        resources:
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ultraplatform-service
+spec:
+  selector:
+    app: ultraplatform
+  ports:
+    - name: web
+      port: 80
+      targetPort: 8080
+    - name: trading
+      port: 8001
+      targetPort: 8001
+    - name: portfolio
+      port: 8002
+      targetPort: 8002
+    - name: analytics
+      port: 8003
+      targetPort: 8003
+  type: LoadBalancer
