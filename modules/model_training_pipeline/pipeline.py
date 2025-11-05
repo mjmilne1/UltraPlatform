@@ -122,11 +122,15 @@ class ModelTrainingPipeline:
             print('   Running hyperparameter tuning...')
             param_grid = self._get_param_grid(model_config.algorithm)
             
+            # FIX: Use n_jobs=1 for Windows compatibility
+            import platform
+            n_jobs = 1 if platform.system() == 'Windows' else -1
+            
             grid_search = GridSearchCV(
                 model, param_grid, 
                 cv=training_config.cv_folds,
                 scoring='accuracy',
-                n_jobs=-1,
+                n_jobs=n_jobs,  # Fixed for Windows
                 verbose=0
             )
             grid_search.fit(X_train, y_train)
@@ -144,14 +148,30 @@ class ModelTrainingPipeline:
         print(f'   Precision: {metrics.precision:.3f}')
         print(f'   Recall: {metrics.recall:.3f}')
         print(f'   F1 Score: {metrics.f1_score:.3f}')
-        if hasattr(metrics, 'auc_roc'):
+        if hasattr(metrics, 'auc_roc') and metrics.auc_roc > 0:
             print(f'   AUC-ROC: {metrics.auc_roc:.3f}')
         
-        # Step 6: Save model
-        print('\n6️⃣ SAVING MODEL')
+        # Step 6: Feature Importance (if available)
+        print('\n6️⃣ FEATURE IMPORTANCE')
+        if hasattr(model, 'feature_importances_'):
+            feature_names = model_config.features if model_config.features else [f'feature_{i}' for i in range(X.shape[1])]
+            importance = sorted(zip(feature_names, model.feature_importances_), key=lambda x: x[1], reverse=True)
+            print('   Top features:')
+            for feat, imp in importance[:3]:
+                print(f'   • {feat}: {imp:.3f}')
+        else:
+            print('   Not available for this model')
+        
+        # Step 7: Save model
+        print('\n7️⃣ SAVING MODEL')
         model_path = self.base_path / f'{model_config.model_name}_{metrics.model_id}.pkl'
         joblib.dump(model, model_path)
         print(f'   ✅ Model saved to: {model_path}')
+        
+        # Also save the scaler
+        scaler_path = self.base_path / f'{model_config.model_name}_{metrics.model_id}_scaler.pkl'
+        joblib.dump(scaler, scaler_path)
+        print(f'   ✅ Scaler saved to: {scaler_path}')
         
         print('\n' + '='*60)
         print('✅ TRAINING COMPLETE!')
@@ -165,11 +185,11 @@ class ModelTrainingPipeline:
         if 'logistic' in algorithm:
             return LogisticRegression(max_iter=1000, random_state=42)
         elif 'forest' in algorithm:
-            return RandomForestClassifier(n_estimators=100, random_state=42)
+            return RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=1)  # n_jobs=1 for Windows
         elif 'gradient' in algorithm:
             return GradientBoostingClassifier(n_estimators=100, random_state=42)
         else:
-            return RandomForestClassifier(n_estimators=100, random_state=42)
+            return RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=1)
     
     def _get_param_grid(self, algorithm: str):
         algorithm = algorithm.lower()
@@ -181,8 +201,8 @@ class ModelTrainingPipeline:
             }
         elif 'forest' in algorithm:
             return {
-                'n_estimators': [50, 100, 200],
-                'max_depth': [None, 10, 20],
+                'n_estimators': [50, 100],  # Reduced for faster execution
+                'max_depth': [None, 10],
                 'min_samples_split': [2, 5]
             }
         else:
@@ -202,9 +222,30 @@ class ModelTrainingPipeline:
             if hasattr(model, 'predict_proba'):
                 y_proba = model.predict_proba(X_test)
                 if len(np.unique(y_test)) == 2:  # Binary classification
-                    metrics.auc_roc = roc_auc_score(y_test, y_proba[:, 1])
+                    try:
+                        metrics.auc_roc = roc_auc_score(y_test, y_proba[:, 1])
+                    except:
+                        metrics.auc_roc = 0.0
         
         return metrics
+    
+    def predict(self, model_path: str, data: pd.DataFrame):
+        """Load model and make predictions"""
+        model = joblib.load(model_path)
+        
+        # Load scaler if it exists
+        scaler_path = model_path.replace('.pkl', '_scaler.pkl')
+        if Path(scaler_path).exists():
+            scaler = joblib.load(scaler_path)
+            data = scaler.transform(data)
+        
+        predictions = model.predict(data)
+        
+        if hasattr(model, 'predict_proba'):
+            probabilities = model.predict_proba(data)
+            return predictions, probabilities
+        
+        return predictions
 
 # ==================== DEMO ====================
 
@@ -232,6 +273,7 @@ if __name__ == '__main__':
     print('\n📊 Creating sample dataset...')
     data = create_sample_data(1000)
     print(f'Dataset shape: {data.shape}')
+    print(f'Target distribution: {dict(data["target"].value_counts())}')
     
     # Configure model
     model_config = ModelConfig(
@@ -245,5 +287,10 @@ if __name__ == '__main__':
     print('\n🚀 Starting model training...')
     pipeline = ModelTrainingPipeline()
     model, metrics, path = pipeline.train_model(data, model_config)
+    
+    print('\n📈 Final Metrics Summary:')
+    print(f'   Model ID: {metrics.model_id}')
+    print(f'   Accuracy: {metrics.accuracy:.2%}')
+    print(f'   F1 Score: {metrics.f1_score:.3f}')
     
     print('\n✅ Pipeline execution complete!')
