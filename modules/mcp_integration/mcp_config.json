@@ -1,0 +1,59 @@
+﻿{
+  'name': 'ultraplatform-mcp',
+  'version': '1.0.0',
+  'description': 'MCP server for UltraPlatform - AI Trading & Portfolio Management',
+  'tools': [
+    {
+      'name': 'get_portfolio_status',
+      'description': 'Get current portfolio status and NAV',
+      'parameters': {
+        'portfolio_id': {'type': 'string', 'required': false}
+      }
+    },
+    {
+      'name': 'execute_trade',
+      'description': 'Execute a trade using AI strategy',
+      'parameters': {
+        'symbol': {'type': 'string', 'required': true},
+        'action': {'type': 'string', 'enum': ['BUY', 'SELL'], 'required': true},
+        'quantity': {'type': 'integer', 'required': true},
+        'strategy': {'type': 'string', 'default': 'momentum'}
+      }
+    },
+    {
+      'name': 'get_ai_signal',
+      'description': 'Get AI trading signal for a symbol',
+      'parameters': {
+        'symbol': {'type': 'string', 'required': true},
+        'strategy': {'type': 'string', 'default': 'optimal'}
+      }
+    },
+    {
+      'name': 'calculate_pnl',
+      'description': 'Calculate current P&L',
+      'parameters': {
+        'include_unrealized': {'type': 'boolean', 'default': true}
+      }
+    },
+    {
+      'name': 'rebalance_portfolio',
+      'description': 'Check and execute portfolio rebalancing',
+      'parameters': {
+        'strategy': {'type': 'string', 'default': 'OPTIMAL'},
+        'execute': {'type': 'boolean', 'default': false}
+      }
+    }
+  ],
+  'resources': [
+    {
+      'uri': 'portfolio://current',
+      'name': 'Current Portfolio',
+      'mimeType': 'application/json'
+    },
+    {
+      'uri': 'analytics://performance',
+      'name': 'Performance Analytics',
+      'mimeType': 'application/json'
+    }
+  ]
+}
