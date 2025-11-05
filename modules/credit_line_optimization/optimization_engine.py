@@ -558,10 +558,10 @@ class CreditLineOptimization:
 class CreditLimitCalculator:
     '''Calculate credit limits based on capacity'''
     
-    def calculate_capacity(self, customer_data):
+        def calculate_capacity(self, customer_data):
         '''Calculate customer credit capacity'''
         # Income-based calculation
-        annual_income = customer_data.get('annual_income', 0)
+        annual_income = customer_data.get('annual_income', 100000)  # Default if missing
         monthly_income = annual_income / 12
         
         # Existing obligations
@@ -569,24 +569,30 @@ class CreditLimitCalculator:
         
         # Free cash flow
         monthly_expenses = customer_data.get('monthly_expenses', monthly_income * 0.6)
-        free_cash_flow = monthly_income - monthly_expenses - existing_debt_payments
+        free_cash_flow = max(0, monthly_income - monthly_expenses - existing_debt_payments)
         
         # Debt service capacity (using 28% DTI limit for new debt)
         max_total_debt_service = monthly_income * 0.28
-        available_debt_service = max_total_debt_service - existing_debt_payments
+        available_debt_service = max(0, max_total_debt_service - existing_debt_payments)
         
         # Maximum sustainable debt (assuming 5% monthly payment)
-        max_sustainable_debt = available_debt_service / 0.05
+        if available_debt_service > 0:
+            max_sustainable_debt = available_debt_service / 0.05
+        else:
+            max_sustainable_debt = 0
         
         # DTI ratio
         current_dti = existing_debt_payments / monthly_income if monthly_income > 0 else 0
         
         # Recommended maximum (conservative)
         recommended_max = min(
-            max_sustainable_debt * 0.8,  # 80% of max sustainable
-            annual_income * 0.5,  # 50% of annual income
-            free_cash_flow * 20  # 20 months of free cash flow
+            max_sustainable_debt * 0.8 if max_sustainable_debt > 0 else annual_income * 0.2,
+            annual_income * 0.5,
+            max(free_cash_flow * 20, 10000)  # Minimum 10k
         )
+        
+        # Ensure recommended_max is reasonable
+        recommended_max = max(10000, recommended_max)  # Minimum 10k
         
         return {
             'monthly_income': monthly_income,
@@ -594,7 +600,7 @@ class CreditLimitCalculator:
             'free_cash_flow': free_cash_flow,
             'max_sustainable_debt': max_sustainable_debt,
             'dti_ratio': current_dti,
-            'recommended_max': max(0, recommended_max)
+            'recommended_max': recommended_max
         }
 
 class PortfolioOptimizer:
@@ -1075,3 +1081,4 @@ if __name__ == '__main__':
     portfolio_result = optimizer.optimize_portfolio(portfolio)
     
     print('\n✅ Credit Line Optimization Complete!')
+
