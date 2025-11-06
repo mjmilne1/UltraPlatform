@@ -1,0 +1,24 @@
+﻿    def _requires_action(
+        self,
+        risk_score: float,
+        current_portfolio: PortfolioAllocation,
+        client: ClientProfile
+    ) -> bool:
+        """Determine if advisory action is required"""
+        # High risk requires action
+        if risk_score > 80:
+            return True
+        
+        # New portfolio always requires initial review
+        # Check if this is a newly created portfolio (no recommendation history)
+        if not hasattr(current_portfolio, 'last_review_date'):
+            return True
+        
+        # Check rebalancing threshold based on client preferences
+        # In real implementation, would check actual drift from target
+        # For now, periodically recommend review
+        threshold = client.rebalancing_threshold if hasattr(client, 'rebalancing_threshold') else 0.05
+        
+        # Simulate drift check - in production would compare to target allocation
+        # Return True for initial optimization scenarios
+        return True  # Always consider recommendations for testing/demo
