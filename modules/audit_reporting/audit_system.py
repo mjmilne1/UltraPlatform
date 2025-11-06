@@ -20,7 +20,7 @@ Version: 1.0.0
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, UTC, timedelta
 from typing import Dict, List, Any, Optional, Callable, Set
 from enum import Enum
 import hashlib
@@ -195,12 +195,12 @@ class RetentionPolicy:
     
     def is_expired(self, event_date: datetime) -> bool:
         """Check if event has exceeded retention period"""
-        days_old = (datetime.utcnow() - event_date).days
+        days_old = (datetime.now(UTC) - event_date).days
         return days_old > self.delete_after_days
     
     def should_archive(self, event_date: datetime) -> bool:
         """Check if event should be archived"""
-        days_old = (datetime.utcnow() - event_date).days
+        days_old = (datetime.now(UTC) - event_date).days
         return days_old > self.archive_after_days
 
 
@@ -376,7 +376,7 @@ class OnboardingAuditService:
             category=category,
             customer_id=customer_id,
             user_id=user_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             details=details,
             ip_address=ip_address,
             user_agent=user_agent,
@@ -471,7 +471,7 @@ class OnboardingAuditService:
             "verified": len(violations) == 0,
             "events_checked": len(events_to_verify),
             "violations": violations,
-            "verification_timestamp": datetime.utcnow().isoformat()
+            "verification_timestamp": datetime.now(UTC).isoformat()
         }
     
     async def apply_retention_policies(self) -> Dict[str, Any]:
@@ -585,7 +585,7 @@ class ComplianceReportingService:
             report_id=f"rpt_{uuid.uuid4().hex}",
             report_type=ReportType.KYC_SUMMARY,
             format=format,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(UTC),
             generated_by="system",
             period_start=start_date,
             period_end=end_date,
@@ -627,7 +627,7 @@ class ComplianceReportingService:
             report_id=f"rpt_{uuid.uuid4().hex}",
             report_type=ReportType.FRAUD_REPORT,
             format=format,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(UTC),
             generated_by="system",
             period_start=start_date,
             period_end=end_date,
@@ -672,7 +672,7 @@ class ComplianceReportingService:
             report_id=f"rpt_{uuid.uuid4().hex}",
             report_type=ReportType.ONBOARDING_METRICS,
             format=format,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(UTC),
             generated_by="system",
             period_start=start_date,
             period_end=end_date,
@@ -727,7 +727,7 @@ class ComplianceReportingService:
     ) -> str:
         """Export events to JSON format"""
         json_data = {
-            "export_timestamp": datetime.utcnow().isoformat(),
+            "export_timestamp": datetime.now(UTC).isoformat(),
             "record_count": len(events),
             "events": [
                 {
@@ -780,7 +780,7 @@ class ComplianceReportingService:
     
     def _calculate_next_run(self, frequency: ReportFrequency) -> datetime:
         """Calculate next report run time"""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         
         if frequency == ReportFrequency.DAILY:
             return now.replace(hour=0, minute=0, second=0) + timedelta(days=1)
@@ -884,7 +884,7 @@ async def demo_audit_reporting():
     # Generate reports
     print("\n4. Generating Compliance Reports...")
     
-    end_date = datetime.utcnow()
+    end_date = datetime.now(UTC)
     start_date = end_date - timedelta(days=30)
     
     kyc_report = await reporting_service.generate_kyc_summary_report(

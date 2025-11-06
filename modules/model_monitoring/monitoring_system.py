@@ -13,7 +13,6 @@ warnings.filterwarnings('ignore')
 # Statistical imports
 from scipy import stats
 from scipy.stats import ks_2samp, chi2_contingency, wasserstein_distance
-from scipy.spatial.distance import jensen_shannon_divergence
 import hashlib
 from pathlib import Path
 
@@ -999,3 +998,4 @@ if __name__ == '__main__':
     report = monitor.generate_monitoring_report('model_001')
     
     print('\n✅ Monitoring system demonstration complete!')
+

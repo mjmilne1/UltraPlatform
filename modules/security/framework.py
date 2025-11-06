@@ -1,7 +1,7 @@
 ﻿import hashlib
 import jwt
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, UTC, timedelta
 from typing import Dict, List, Optional
 from enum import Enum
 
@@ -70,8 +70,8 @@ class SecurityFramework:
         payload = {
             'username': username,
             'role': role,
-            'exp': datetime.utcnow() + timedelta(hours=8),
-            'iat': datetime.utcnow()
+            'exp': datetime.now(UTC) + timedelta(hours=8),
+            'iat': datetime.now(UTC)
         }
         
         token = jwt.encode(payload, self.secret_key, algorithm='HS256')

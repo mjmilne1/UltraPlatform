@@ -25,7 +25,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, validator
 from typing import Optional, Dict, List, Any, Callable, Union
-from datetime import datetime, timedelta
+from datetime import datetime, UTC, timedelta
 from enum import Enum
 import asyncio
 import hashlib
@@ -372,7 +372,7 @@ class AuthenticationService:
         
         expires_at = None
         if expires_days:
-            expires_at = datetime.utcnow() + timedelta(days=expires_days)
+            expires_at = datetime.now(UTC) + timedelta(days=expires_days)
         
         api_key = APIKey(
             key_id=key_id,
@@ -380,7 +380,7 @@ class AuthenticationService:
             tenant_id=tenant_id,
             tier=tier,
             scopes=scopes,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
             expires_at=expires_at
         )
         
@@ -399,7 +399,7 @@ class AuthenticationService:
         if not key_data.active:
             return None
         
-        if key_data.expires_at and datetime.utcnow() > key_data.expires_at:
+        if key_data.expires_at and datetime.now(UTC) > key_data.expires_at:
             return None
         
         return key_data
@@ -416,8 +416,8 @@ class AuthenticationService:
             "tenant_id": tenant_id,
             "user_id": user_id,
             "scopes": scopes,
-            "exp": datetime.utcnow() + timedelta(minutes=expires_minutes),
-            "iat": datetime.utcnow(),
+            "exp": datetime.now(UTC) + timedelta(minutes=expires_minutes),
+            "iat": datetime.now(UTC),
             "jti": uuid.uuid4().hex
         }
         
@@ -489,7 +489,7 @@ class RateLimiter:
             (allowed, limit_info)
         """
         config = self.limits[tier]
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         
         # Get request history
         requests = self.request_counts[tenant_id]
@@ -638,7 +638,7 @@ class WebhookManager:
             webhook_payload = {
                 "event_type": delivery.event_type.value,
                 "event_id": delivery.delivery_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "data": delivery.payload
             }
             
@@ -665,8 +665,8 @@ class WebhookManager:
                     
                     if 200 <= response.status < 300:
                         delivery.status = WebhookStatus.DELIVERED
-                        delivery.delivered_at = datetime.utcnow()
-                        webhook.last_delivery = datetime.utcnow()
+                        delivery.delivered_at = datetime.now(UTC)
+                        webhook.last_delivery = datetime.now(UTC)
                         webhook.delivery_count += 1
                         logger.info(f"Webhook delivered: {delivery.delivery_id}")
                     else:
@@ -682,7 +682,7 @@ class WebhookManager:
             # Schedule retry
             if delivery.attempt < self.max_retries:
                 delay = self.retry_delays[delivery.attempt - 1]
-                delivery.next_retry = datetime.utcnow() + timedelta(seconds=delay)
+                delivery.next_retry = datetime.now(UTC) + timedelta(seconds=delay)
                 delivery.status = WebhookStatus.RETRYING
                 
                 logger.info(f"Scheduling retry for {delivery.delivery_id} in {delay}s")
@@ -717,7 +717,7 @@ class CircuitBreakerManager:
             # Check if timeout has passed
             if breaker.opened_at:
                 timeout = timedelta(seconds=breaker.timeout_seconds)
-                if datetime.utcnow() - breaker.opened_at > timeout:
+                if datetime.now(UTC) - breaker.opened_at > timeout:
                     breaker.state = CircuitState.HALF_OPEN
                     breaker.success_count = 0
                     logger.info(f"Circuit breaker {name} transitioned to HALF_OPEN")
@@ -743,11 +743,11 @@ class CircuitBreakerManager:
         """Record failed request"""
         breaker = self.get_breaker(name)
         breaker.failure_count += 1
-        breaker.last_failure_time = datetime.utcnow()
+        breaker.last_failure_time = datetime.now(UTC)
         
         if breaker.failure_count >= breaker.failure_threshold:
             breaker.state = CircuitState.OPEN
-            breaker.opened_at = datetime.utcnow()
+            breaker.opened_at = datetime.now(UTC)
             logger.warning(f"Circuit breaker {name} OPENED after {breaker.failure_count} failures")
 
 
@@ -874,7 +874,7 @@ class OnboardingAPI:
         # Health check
         @self.app.get("/health")
         async def health_check():
-            return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+            return {"status": "healthy", "timestamp": datetime.now(UTC).isoformat()}
         
         # Metrics endpoint
         @self.app.get("/metrics")

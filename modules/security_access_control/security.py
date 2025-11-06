@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timedelta
+﻿from datetime import datetime, UTC, timedelta
 from typing import Dict, List, Optional, Any, Union, Set
 from enum import Enum
 import json
@@ -497,7 +497,7 @@ class TokenManager:
     
     def generate_token(self, user, token_type='access'):
         '''Generate JWT token'''
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         
         if token_type == 'access':
             expiry = now + TOKEN_EXPIRY

@@ -20,7 +20,7 @@ Version: 1.0.0
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, UTC, timedelta
 from typing import Dict, List, Any, Optional, Callable
 from enum import Enum
 from collections import deque, defaultdict
@@ -259,7 +259,7 @@ class PerformanceMonitoringService:
             service=service,
             metric_type=metric_type,
             value=value,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             metadata=metadata or {}
         )
         
@@ -285,7 +285,7 @@ class PerformanceMonitoringService:
                     severity = "critical"
                 
                 alert = {
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "service": service.value,
                     "metric": metric_type.value,
                     "value": value,
@@ -302,7 +302,7 @@ class PerformanceMonitoringService:
                 violated = True
                 
                 alert = {
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "service": service.value,
                     "metric": metric_type.value,
                     "value": value,
@@ -321,7 +321,7 @@ class PerformanceMonitoringService:
         time_window_minutes: int = 60
     ) -> List[PerformanceMetric]:
         """Get metrics for a service"""
-        cutoff_time = datetime.utcnow() - timedelta(minutes=time_window_minutes)
+        cutoff_time = datetime.now(UTC) - timedelta(minutes=time_window_minutes)
         
         metrics = self.metrics[service]
         
@@ -484,7 +484,7 @@ class AutoScalingService:
         current_count = self.current_instances.get(service, policy.min_instances)
         
         # Check cooldown periods
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         
         last_up = self.last_scale_up.get(service)
         last_down = self.last_scale_down.get(service)
@@ -553,20 +553,20 @@ class AutoScalingService:
         
         if action == ScalingAction.SCALE_OUT:
             new_count = min(current_count + 1, policy.max_instances)
-            self.last_scale_up[service] = datetime.utcnow()
+            self.last_scale_up[service] = datetime.now(UTC)
         
         elif action == ScalingAction.SCALE_IN:
             new_count = max(current_count - 1, policy.min_instances)
-            self.last_scale_down[service] = datetime.utcnow()
+            self.last_scale_down[service] = datetime.now(UTC)
         
         event = ScalingEvent(
-            event_id=f"scale_{service.value}_{datetime.utcnow().timestamp()}",
+            event_id=f"scale_{service.value}_{datetime.now(UTC).timestamp()}",
             service=service,
             action=action,
             reason=reason,
             instances_before=current_count,
             instances_after=new_count,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             triggered_by="auto_scaler"
         )
         
@@ -583,7 +583,7 @@ class AutoScalingService:
         hours: int = 24
     ) -> List[ScalingEvent]:
         """Get scaling event history"""
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
         
         events = [e for e in self.scaling_events if e.timestamp >= cutoff]
         
@@ -652,7 +652,7 @@ class CacheManagementService:
             metadata = self.cache_metadata.get(key, {})
             expires_at = metadata.get("expires_at")
             
-            if expires_at and datetime.utcnow() > expires_at:
+            if expires_at and datetime.now(UTC) > expires_at:
                 # Expired
                 del self.cache[key]
                 del self.cache_metadata[key]
@@ -661,7 +661,7 @@ class CacheManagementService:
             
             # Hit
             self.hits += 1
-            metadata["last_accessed"] = datetime.utcnow()
+            metadata["last_accessed"] = datetime.now(UTC)
             metadata["access_count"] = metadata.get("access_count", 0) + 1
             
             return self.cache[key]
@@ -687,11 +687,11 @@ class CacheManagementService:
         
         expires_at = None
         if ttl_seconds:
-            expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+            expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
         
         self.cache_metadata[key] = {
-            "created_at": datetime.utcnow(),
-            "last_accessed": datetime.utcnow(),
+            "created_at": datetime.now(UTC),
+            "last_accessed": datetime.now(UTC),
             "expires_at": expires_at,
             "access_count": 0,
             "cache_type": cache_type

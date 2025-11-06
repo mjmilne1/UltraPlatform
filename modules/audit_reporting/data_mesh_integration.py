@@ -6,7 +6,7 @@ Enhanced audit system that leverages the Ultra Platform Data Mesh
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Dict, List, Any, Optional
 from enum import Enum
 import asyncio
@@ -196,7 +196,7 @@ class DataMeshAuditService:
                 "domain": domain.value,
                 "product_id": f"audit_{domain.value}_v1",
                 "schema_version": "1.0",
-                "published_at": datetime.utcnow().isoformat(),
+                "published_at": datetime.now(UTC).isoformat(),
                 "quality_score": 1.0
             }
         }
@@ -264,7 +264,7 @@ class DataMeshAuditService:
         """
         federated_view = {
             "customer_id": customer_id,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "domains": {}
         }
         

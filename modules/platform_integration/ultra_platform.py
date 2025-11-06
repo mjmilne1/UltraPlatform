@@ -10,7 +10,7 @@ Version: 1.0.0
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Dict, List, Any, Optional
 from enum import Enum
 import asyncio
@@ -178,7 +178,7 @@ class UltraPlatform:
             customer_id=customer_id,
             application_id=application_id,
             current_stage=WorkflowStage.APPLICATION_STARTED,
-            started_at=datetime.utcnow()
+            started_at=datetime.now(UTC)
         )
         
         self.active_workflows[customer_id] = state
@@ -191,7 +191,7 @@ class UltraPlatform:
                 "customer_id": customer_id,
                 "application_id": application_id,
                 "email": customer_data.get("email"),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         )
         
@@ -240,7 +240,7 @@ class UltraPlatform:
             raise ValueError(f"No active workflow for customer {customer_id}")
         
         # Simulate identity verification
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
         
         # Perform verification (simulated)
         await asyncio.sleep(0.1)  # Simulate processing
@@ -254,7 +254,7 @@ class UltraPlatform:
                 "face_match": True,
                 "liveness_check": True
             },
-            "verified_at": datetime.utcnow().isoformat()
+            "verified_at": datetime.now(UTC).isoformat()
         }
         
         # Publish to Data Mesh - Identity domain
@@ -264,7 +264,7 @@ class UltraPlatform:
                 "event": "identity_verified",
                 "customer_id": customer_id,
                 "verification_result": verification_result,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         )
         
@@ -284,7 +284,7 @@ class UltraPlatform:
             )
         
         # Record performance
-        duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+        duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
         if self.performance_monitor:
             from modules.performance.performance_system import ServiceType, MetricType
             await self.performance_monitor.record_metric(
@@ -315,7 +315,7 @@ class UltraPlatform:
         if not state:
             raise ValueError(f"No active workflow for customer {customer_id}")
         
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
         
         # Perform screening (simulated)
         await asyncio.sleep(0.05)
@@ -328,7 +328,7 @@ class UltraPlatform:
             "pep_match": False,
             "sanctions_match": False,
             "adverse_media": False,
-            "screened_at": datetime.utcnow().isoformat()
+            "screened_at": datetime.now(UTC).isoformat()
         }
         
         # Publish to Data Mesh - KYC domain
@@ -338,7 +338,7 @@ class UltraPlatform:
                 "event": "kyc_completed",
                 "customer_id": customer_id,
                 "screening_result": screening_result,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         )
         
@@ -358,7 +358,7 @@ class UltraPlatform:
             )
         
         # Record performance
-        duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+        duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
         if self.performance_monitor:
             from modules.performance.performance_system import ServiceType, MetricType
             await self.performance_monitor.record_metric(
@@ -403,7 +403,7 @@ class UltraPlatform:
             "synthetic_identity_score": 0.05,
             "velocity_check": "PASS",
             "device_fingerprint": "trusted",
-            "checked_at": datetime.utcnow().isoformat()
+            "checked_at": datetime.now(UTC).isoformat()
         }
         
         # Publish to Data Mesh - Fraud domain
@@ -413,7 +413,7 @@ class UltraPlatform:
                 "event": "fraud_check_completed",
                 "customer_id": customer_id,
                 "fraud_result": fraud_result,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         )
         
@@ -461,7 +461,7 @@ class UltraPlatform:
                 "kyc": kyc_baseline,
                 "fraud": fraud_baseline
             },
-            "setup_at": datetime.utcnow().isoformat()
+            "setup_at": datetime.now(UTC).isoformat()
         }
         
         # Publish to Data Mesh - Monitoring domain
@@ -471,7 +471,7 @@ class UltraPlatform:
                 "event": "monitoring_setup_completed",
                 "customer_id": customer_id,
                 "monitoring_config": monitoring_config,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         )
         
@@ -503,7 +503,7 @@ class UltraPlatform:
         if not state:
             raise ValueError(f"No active workflow for customer {customer_id}")
         
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
         
         # Verify all requirements are met
         required_domains = [DataDomain.IDENTITY, DataDomain.KYC, DataDomain.FRAUD]
@@ -520,7 +520,7 @@ class UltraPlatform:
             "account_number": f"{uuid.uuid4().hex[:12].upper()}",
             "account_type": account_data.get("account_type", "STANDARD"),
             "status": "ACTIVE",
-            "opened_at": datetime.utcnow().isoformat(),
+            "opened_at": datetime.now(UTC).isoformat(),
             "initial_balance": 0.00
         }
         
@@ -531,7 +531,7 @@ class UltraPlatform:
                 "event": "account_opened",
                 "customer_id": customer_id,
                 "account_result": account_result,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }
         )
         
@@ -552,7 +552,7 @@ class UltraPlatform:
             )
         
         # Record performance
-        duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+        duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
         if self.performance_monitor:
             from modules.performance.performance_system import ServiceType, MetricType
             await self.performance_monitor.record_metric(
@@ -579,7 +579,7 @@ class UltraPlatform:
             product_id=f"{domain.value}_{data.get('customer_id', 'unknown')}",
             data=data,
             version="1.0",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
             quality_score=1.0
         )
         
@@ -640,7 +640,7 @@ class UltraPlatform:
         
         view = {
             "customer_id": customer_id,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "domains": {}
         }
         
@@ -670,7 +670,7 @@ class UltraPlatform:
         """Get overall platform health"""
         health = {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "components": {}
         }
         
@@ -716,7 +716,7 @@ class UltraPlatform:
     def get_platform_metrics(self) -> Dict[str, Any]:
         """Get platform-wide metrics"""
         metrics = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "workflows": {
                 "active": len(self.active_workflows),
                 "total_processed": len(self.active_workflows)
@@ -910,7 +910,7 @@ async def demo_complete_onboarding():
     
     print("\n" + "=" * 70)
     print("✅ COMPLETE ONBOARDING WORKFLOW FINISHED!")
-    print(f"⏱️  Total Time: {(datetime.utcnow() - state.started_at).total_seconds():.2f}s")
+    print(f"⏱️  Total Time: {(datetime.now(UTC) - state.started_at).total_seconds():.2f}s")
     print(f"📊 Completion: {state.completion_percentage:.0f}%")
     print(f"🔗 Domains Integrated: {len(view_360['domains'])}")
     print("=" * 70 + "\n")
