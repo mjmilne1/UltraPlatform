@@ -1,0 +1,13 @@
+﻿# Web Framework (has Python 3.13 wheels)
+flask==3.0.0
+flask-cors==4.0.0
+
+# Database
+sqlalchemy==2.0.23
+
+# Utilities
+pyyaml==6.0.1
+python-dotenv==1.0.0
+
+# Testing
+pytest==7.4.3
