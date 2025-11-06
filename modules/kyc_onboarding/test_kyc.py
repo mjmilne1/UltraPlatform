@@ -43,7 +43,22 @@ from modules.kyc_onboarding.kyc_engine import (
     VerificationStatus,
     RiskLevel,
     OnboardingStep,
-    ScreeningHitType
+    ScreeningHitType,
+    # Fraud Detection imports
+    SyntheticIdentityDetector,
+    VelocityMonitor,
+    DeviceFingerprintAnalyzer,
+    BehavioralAnalyzer,
+    MLFraudModel,
+    FraudDetectionEngine,
+    DeviceInfo,
+    FraudDetectionResult,
+    FraudStatus,
+    FraudSignal,
+    SyntheticIdentityResult,
+    VelocityCheckResult,
+    BehavioralAnalysisResult,
+    ReviewPriority
 )
 
 
@@ -812,4 +827,567 @@ class TestIntegration:
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
+
+
+
+class TestSyntheticIdentityDetector:
+    """Tests for synthetic identity detection"""
+    
+    def test_detector_initialization(self):
+        """Test synthetic identity detector initialization"""
+        detector = SyntheticIdentityDetector()
+        
+        assert len(detector.sanctioned_countries) > 0
+        assert len(detector.voip_providers) > 0
+        assert len(detector.disposable_email_domains) > 0
+    
+    @pytest.mark.asyncio
+    async def test_detect_synthetic_identity_clean(self):
+        """Test clean identity (not synthetic)"""
+        detector = SyntheticIdentityDetector()
+        
+        customer = CustomerProfile(
+            customer_id="CUST-001",
+            first_name="John",
+            middle_name="M",
+            last_name="Smith",
+            date_of_birth=datetime(1985, 6, 15),
+            email="john@gmail.com",
+            phone="+61412345678",
+            residential_address="123 Main St",
+            city="Sydney",
+            state="NSW",
+            postcode="2000",
+            country="AU",
+            nationality="AU",
+            occupation="Engineer"
+        )
+        
+        result = await detector.detect_synthetic_identity(
+            customer,
+            "+61412345678",
+            "john@gmail.com"
+        )
+        
+        assert isinstance(result, SyntheticIdentityResult)
+        assert result.is_synthetic is False
+        assert result.synthetic_risk_score < 50
+    
+    @pytest.mark.asyncio
+    async def test_detect_disposable_email(self):
+        """Test disposable email detection"""
+        detector = SyntheticIdentityDetector()
+        
+        customer = CustomerProfile(
+            customer_id="CUST-002",
+            first_name="John",
+            middle_name="M",
+            last_name="Smith",
+            date_of_birth=datetime(1985, 6, 15),
+            email="test@tempmail.com",
+            phone="+61412345678",
+            residential_address="123 Main St",
+            city="Sydney",
+            state="NSW",
+            postcode="2000",
+            country="AU",
+            nationality="AU",
+            occupation="Engineer"
+        )
+        
+        result = await detector.detect_synthetic_identity(
+            customer,
+            "+61412345678",
+            "test@tempmail.com"
+        )
+        
+        assert result.is_synthetic is True
+        assert "DISPOSABLE_EMAIL" in result.reasons
+        assert result.synthetic_risk_score > 0
+
+
+class TestVelocityMonitor:
+    """Tests for velocity monitoring"""
+    
+    def test_monitor_initialization(self):
+        """Test velocity monitor initialization"""
+        monitor = VelocityMonitor()
+        
+        assert monitor.time_window == timedelta(days=30)
+        assert len(monitor.application_history) == 0
+    
+    @pytest.mark.asyncio
+    async def test_check_velocity_first_application(self):
+        """Test velocity check for first application"""
+        monitor = VelocityMonitor()
+        
+        customer = CustomerProfile(
+            customer_id="CUST-001",
+            first_name="John",
+            middle_name="M",
+            last_name="Smith",
+            date_of_birth=datetime(1985, 6, 15),
+            email="john@example.com",
+            phone="+61412345678",
+            residential_address="123 Main St",
+            city="Sydney",
+            state="NSW",
+            postcode="2000",
+            country="AU",
+            nationality="AU",
+            occupation="Engineer",
+            tax_file_number="123456789"
+        )
+        
+        result = await monitor.check_velocity(
+            customer,
+            "device-fingerprint-123",
+            "203.0.113.1",
+            "john@example.com",
+            "+61412345678"
+        )
+        
+        assert isinstance(result, VelocityCheckResult)
+        assert result.high_velocity is False
+        assert result.ssn_count <= 1
+        assert result.device_count <= 1
+    
+    @pytest.mark.asyncio
+    async def test_check_velocity_high_velocity(self):
+        """Test high velocity detection"""
+        monitor = VelocityMonitor()
+        
+        customer = CustomerProfile(
+            customer_id="CUST-001",
+            first_name="John",
+            middle_name="M",
+            last_name="Smith",
+            date_of_birth=datetime(1985, 6, 15),
+            email="john@example.com",
+            phone="+61412345678",
+            residential_address="123 Main St",
+            city="Sydney",
+            state="NSW",
+            postcode="2000",
+            country="AU",
+            nationality="AU",
+            occupation="Engineer",
+            tax_file_number="123456789"
+        )
+        
+        # Simulate multiple applications with same SSN
+        for i in range(5):
+            await monitor.check_velocity(
+                customer,
+                f"device-{i}",
+                f"203.0.113.{i}",
+                f"email{i}@example.com",
+                f"+6141234567{i}"
+            )
+        
+        # This should trigger high velocity
+        result = await monitor.check_velocity(
+            customer,
+            "device-new",
+            "203.0.113.100",
+            "newemail@example.com",
+            "+61400000000"
+        )
+        
+        assert result.high_velocity is True
+        assert result.ssn_count > 3
+        assert result.velocity_risk_score > 0
+
+
+class TestDeviceFingerprintAnalyzer:
+    """Tests for device fingerprint analysis"""
+    
+    def test_analyzer_initialization(self):
+        """Test device analyzer initialization"""
+        analyzer = DeviceFingerprintAnalyzer()
+        
+        assert len(analyzer.device_usage) == 0
+    
+    @pytest.mark.asyncio
+    async def test_analyze_clean_device(self):
+        """Test clean device analysis"""
+        analyzer = DeviceFingerprintAnalyzer()
+        
+        device = DeviceInfo(
+            fingerprint="device-123",
+            ip_address="203.0.113.1",
+            user_agent="Mozilla/5.0",
+            browser_type="Chrome",
+            browser_version="120.0",
+            os_type="Windows",
+            os_version="11",
+            screen_resolution="1920x1080",
+            timezone="Australia/Sydney",
+            language="en-AU",
+            is_emulator=False,
+            is_vpn=False,
+            is_proxy=False,
+            is_tor=False
+        )
+        
+        result = await analyzer.analyze_device(device, "Sydney, NSW, AU")
+        
+        assert result["suspicious"] is False
+        assert result["risk_score"] < 30
+    
+    @pytest.mark.asyncio
+    async def test_analyze_suspicious_device(self):
+        """Test suspicious device (VPN + emulator)"""
+        analyzer = DeviceFingerprintAnalyzer()
+        
+        device = DeviceInfo(
+            fingerprint="device-sus",
+            ip_address="203.0.113.1",
+            user_agent="Mozilla/5.0",
+            browser_type="Chrome",
+            browser_version="120.0",
+            os_type="Android",
+            os_version="11",
+            screen_resolution="1920x1080",
+            timezone="Australia/Sydney",
+            language="en-AU",
+            is_emulator=True,
+            is_vpn=True,
+            is_proxy=False,
+            is_tor=False
+        )
+        
+        result = await analyzer.analyze_device(device, "Sydney, NSW, AU")
+        
+        assert result["suspicious"] is True
+        assert result["risk_score"] > 30
+        assert "EMULATOR_DETECTED" in result["risk_factors"]
+        assert "VPN_PROXY" in result["risk_factors"]
+
+
+class TestBehavioralAnalyzer:
+    """Tests for behavioral analytics"""
+    
+    @pytest.mark.asyncio
+    async def test_analyze_normal_behavior(self):
+        """Test normal user behavior"""
+        analyzer = BehavioralAnalyzer()
+        
+        session_data = {
+            "completion_time_seconds": 600,  # 10 minutes
+            "typing_speed_wpm": 60,
+            "paste_count": 2,
+            "mouse_movements": [{"x": i, "y": i} for i in range(100)],
+            "field_sequence": ["name", "email", "phone", "address"]
+        }
+        
+        result = await analyzer.analyze_behavior(session_data)
+        
+        assert isinstance(result, BehavioralAnalysisResult)
+        assert result.is_suspicious is False
+        assert result.behavioral_risk_score < 40
+    
+    @pytest.mark.asyncio
+    async def test_analyze_suspicious_behavior(self):
+        """Test suspicious behavior (too fast, too many pastes)"""
+        analyzer = BehavioralAnalyzer()
+        
+        session_data = {
+            "completion_time_seconds": 30,  # 30 seconds (too fast)
+            "typing_speed_wpm": 150,  # Superhuman
+            "paste_count": 10,  # Too many pastes
+            "mouse_movements": [],  # No mouse movement
+            "field_sequence": ["name"]
+        }
+        
+        result = await analyzer.analyze_behavior(session_data)
+        
+        assert result.is_suspicious is True
+        assert result.behavioral_risk_score > 40
+
+
+class TestMLFraudModel:
+    """Tests for ML fraud model"""
+    
+    @pytest.mark.asyncio
+    async def test_predict_fraud_low_risk(self):
+        """Test ML prediction for low-risk profile"""
+        model = MLFraudModel()
+        
+        features = {
+            "age": 35,
+            "completion_time": 600,
+            "velocity_score": 0,
+            "device_risk": 0,
+            "income": 80000
+        }
+        
+        fraud_prob, confidence = await model.predict_fraud(features)
+        
+        assert fraud_prob >= 0.0
+        assert fraud_prob <= 1.0
+        assert confidence > 0.5
+    
+    @pytest.mark.asyncio
+    async def test_predict_fraud_high_risk(self):
+        """Test ML prediction for high-risk profile"""
+        model = MLFraudModel()
+        
+        features = {
+            "age": 20,
+            "completion_time": 30,  # Too fast
+            "velocity_score": 80,  # High velocity
+            "device_risk": 60,  # Risky device
+            "income": 1000000  # Suspicious for age
+        }
+        
+        fraud_prob, confidence = await model.predict_fraud(features)
+        
+        assert fraud_prob > 0.5  # Should be high risk
+        assert confidence > 0.5
+
+
+class TestFraudDetectionEngine:
+    """Tests for complete fraud detection engine"""
+    
+    def test_engine_initialization(self):
+        """Test fraud detection engine initialization"""
+        engine = FraudDetectionEngine()
+        
+        assert engine.synthetic_detector is not None
+        assert engine.velocity_monitor is not None
+        assert engine.device_analyzer is not None
+        assert engine.behavioral_analyzer is not None
+        assert engine.ml_model is not None
+        assert engine.total_checks == 0
+    
+    @pytest.mark.asyncio
+    async def test_detect_fraud_clean_profile(self):
+        """Test fraud detection for clean profile"""
+        engine = FraudDetectionEngine()
+        
+        customer = CustomerProfile(
+            customer_id="CUST-001",
+            first_name="John",
+            middle_name="M",
+            last_name="Smith",
+            date_of_birth=datetime(1985, 6, 15),
+            email="john@gmail.com",
+            phone="+61412345678",
+            residential_address="123 Main St",
+            city="Sydney",
+            state="NSW",
+            postcode="2000",
+            country="AU",
+            nationality="AU",
+            occupation="Engineer"
+        )
+        
+        device = DeviceInfo(
+            fingerprint="device-123",
+            ip_address="203.0.113.1",
+            user_agent="Mozilla/5.0",
+            browser_type="Chrome",
+            browser_version="120.0",
+            os_type="Windows",
+            os_version="11",
+            screen_resolution="1920x1080",
+            timezone="Australia/Sydney",
+            language="en-AU",
+            is_emulator=False,
+            is_vpn=False,
+            is_proxy=False,
+            is_tor=False
+        )
+        
+        session_data = {
+            "completion_time_seconds": 600,
+            "typing_speed_wpm": 60,
+            "paste_count": 2,
+            "mouse_movements": [{"x": i, "y": i} for i in range(100)],
+            "field_sequence": ["name", "email", "phone"],
+            "income": 80000
+        }
+        
+        result = await engine.detect_fraud(
+            customer,
+            device,
+            session_data,
+            "john@gmail.com",
+            "+61412345678"
+        )
+        
+        assert isinstance(result, FraudDetectionResult)
+        assert result.fraud_status == FraudStatus.PASS
+        assert result.fraud_score < 40
+        assert result.processing_time_ms < 3000  # <3 seconds
+    
+    @pytest.mark.asyncio
+    async def test_detect_fraud_suspicious_profile(self):
+        """Test fraud detection for suspicious profile"""
+        engine = FraudDetectionEngine()
+        
+        customer = CustomerProfile(
+            customer_id="CUST-002",
+            first_name="John",
+            middle_name="M",
+            last_name="Smith",
+            date_of_birth=datetime(2003, 1, 1),  # Young
+            email="test@tempmail.com",  # Disposable
+            phone="+61412345678",
+            residential_address="PO Box 123",  # Suspicious
+            city="Sydney",
+            state="NSW",
+            postcode="2000",
+            country="AU",
+            nationality="AU",
+            occupation="CEO"
+        )
+        
+        device = DeviceInfo(
+            fingerprint="device-sus",
+            ip_address="203.0.113.1",
+            user_agent="Mozilla/5.0",
+            browser_type="Chrome",
+            browser_version="120.0",
+            os_type="Android",
+            os_version="11",
+            screen_resolution="1920x1080",
+            timezone="Australia/Sydney",
+            language="en-AU",
+            is_emulator=True,
+            is_vpn=True,
+            is_proxy=False,
+            is_tor=False
+        )
+        
+        session_data = {
+            "completion_time_seconds": 30,  # Too fast
+            "typing_speed_wpm": 150,  # Too fast
+            "paste_count": 10,
+            "mouse_movements": [],
+            "field_sequence": ["name"],
+            "income": 1000000  # Suspicious for age
+        }
+        
+        result = await engine.detect_fraud(
+            customer,
+            device,
+            session_data,
+            "test@tempmail.com",
+            "+61412345678"
+        )
+        
+        assert result.fraud_status in [FraudStatus.REVIEW, FraudStatus.BLOCKED]
+        assert result.fraud_score > 40
+        assert len(result.fraud_signals) > 0
+    
+    def test_get_performance_metrics(self):
+        """Test performance metrics"""
+        engine = FraudDetectionEngine()
+        
+        engine.total_checks = 100
+        engine.fraud_detected = 5
+        engine.false_positives = 2
+        
+        metrics = engine.get_performance_metrics()
+        
+        assert metrics["total_checks"] == 100
+        assert metrics["fraud_detected"] == 5
+        assert metrics["detection_rate"] == 5.0
+        assert metrics["false_positive_rate"] == 2.0
+        assert "target_detection_rate" in metrics
+
+
+class TestFraudDetectionIntegration:
+    """Integration tests for fraud detection"""
+    
+    @pytest.mark.asyncio
+    async def test_end_to_end_fraud_detection(self):
+        """Test complete fraud detection workflow"""
+        engine = FraudDetectionEngine()
+        
+        # Multiple test cases
+        test_cases = [
+            {
+                "name": "Clean profile",
+                "customer": CustomerProfile(
+                    customer_id="CUST-CLEAN",
+                    first_name="Jane",
+                    middle_name="A",
+                    last_name="Doe",
+                    date_of_birth=datetime(1990, 5, 15),
+                    email="jane@gmail.com",
+                    phone="+61423456789",
+                    residential_address="456 Test St",
+                    city="Melbourne",
+                    state="VIC",
+                    postcode="3000",
+                    country="AU",
+                    nationality="AU",
+                    occupation="Teacher"
+                ),
+                "expected_status": FraudStatus.PASS
+            },
+            {
+                "name": "Suspicious profile",
+                "customer": CustomerProfile(
+                    customer_id="CUST-SUS",
+                    first_name="Bob",
+                    middle_name="",
+                    last_name="Fraud",
+                    date_of_birth=datetime(2005, 1, 1),
+                    email="test@tempmail.com",
+                    phone="+61400000000",
+                    residential_address="PO Box 1",
+                    city="Sydney",
+                    state="NSW",
+                    postcode="2000",
+                    country="AU",
+                    nationality="AU",
+                    occupation="Executive"
+                ),
+                "expected_status": [FraudStatus.REVIEW, FraudStatus.BLOCKED]
+            }
+        ]
+        
+        for test_case in test_cases:
+            device = DeviceInfo(
+                fingerprint=f"device-{test_case['name']}",
+                ip_address="203.0.113.1",
+                user_agent="Mozilla/5.0",
+                browser_type="Chrome",
+                browser_version="120.0",
+                os_type="Windows",
+                os_version="11",
+                screen_resolution="1920x1080",
+                timezone="Australia/Sydney",
+                language="en-AU"
+            )
+            
+            session_data = {
+                "completion_time_seconds": 600,
+                "typing_speed_wpm": 60,
+                "paste_count": 2,
+                "mouse_movements": [{"x": i, "y": i} for i in range(50)],
+                "field_sequence": ["name", "email"],
+                "income": 50000
+            }
+            
+            result = await engine.detect_fraud(
+                test_case["customer"],
+                device,
+                session_data,
+                test_case["customer"].email,
+                test_case["customer"].phone
+            )
+            
+            if isinstance(test_case["expected_status"], list):
+                assert result.fraud_status in test_case["expected_status"]
+            else:
+                assert result.fraud_status == test_case["expected_status"]
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
 
