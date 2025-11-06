@@ -1,123 +1,233 @@
-﻿"""
-Capsules Service - Flask REST API
-Institutional-grade portfolio management
-"""
-from flask import Flask, jsonify, request
+﻿from flask import Flask, jsonify, request
 from flask_cors import CORS
 from datetime import datetime
 import logging
+from models import Capsule, Transaction, Allocation, Performance, SessionLocal
+from rebalancing import RebalancingEngine, calculate_performance
+from sqlalchemy.exc import SQLAlchemyError
+import uuid
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create Flask app
 app = Flask(__name__)
 CORS(app)
 
-# In-memory storage (will add database later)
-capsules_db = {}
+rebalancer = RebalancingEngine(threshold=5.0)
+
+with app.app_context():
+    try:
+        from models import init_db
+        init_db()
+        logger.info("✓ PostgreSQL connected")
+    except Exception as e:
+        logger.error(f"✗ Database error: {e}")
+
+def get_db():
+    return SessionLocal()
+
+# ===== EXISTING ENDPOINTS =====
 
 @app.route('/')
 def home():
     return jsonify({
         'service': 'Capsules Platform',
-        'version': '1.0.0',
-        'status': 'operational',
-        'timestamp': datetime.utcnow().isoformat()
+        'version': '3.0.0',
+        'database': 'PostgreSQL',
+        'features': ['transactions', 'allocations', 'rebalancing', 'performance'],
+        'status': 'operational'
     })
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'healthy'}), 200
+    db = get_db()
+    try:
+        db.execute('SELECT 1')
+        db_status = 'healthy'
+    except:
+        db_status = 'unhealthy'
+    finally:
+        db.close()
+    return jsonify({'status': 'healthy', 'database': db_status}), 200
 
-@app.route('/api/v1/capsules', methods=['GET'])
-def list_capsules():
-    """List all capsules"""
-    client_id = request.args.get('client_id')
+@app.route('/api/v1/capsules', methods=['GET', 'POST'])
+def capsules():
+    if request.method == 'GET':
+        db = get_db()
+        try:
+            client_id = request.args.get('client_id')
+            query = db.query(Capsule)
+            if client_id:
+                query = query.filter(Capsule.client_id == client_id)
+            return jsonify([c.to_dict() for c in query.all()])
+        finally:
+            db.close()
     
-    if client_id:
-        filtered = {k: v for k, v in capsules_db.items() if v.get('client_id') == client_id}
-        return jsonify(list(filtered.values()))
-    
-    return jsonify(list(capsules_db.values()))
+    else:  # POST
+        db = get_db()
+        try:
+            data = request.get_json()
+            count = db.query(Capsule).count()
+            capsule = Capsule(
+                id=f"cap_{count + 1}",
+                client_id=data['client_id'],
+                capsule_type=data['capsule_type'],
+                goal_amount=float(data['goal_amount']),
+                goal_date=data['goal_date'],
+                current_value=data.get('current_value', 0.0),
+                status='created'
+            )
+            db.add(capsule)
+            db.commit()
+            db.refresh(capsule)
+            return jsonify(capsule.to_dict()), 201
+        finally:
+            db.close()
 
-@app.route('/api/v1/capsules/<capsule_id>', methods=['GET'])
-def get_capsule(capsule_id):
-    """Get a specific capsule"""
-    capsule = capsules_db.get(capsule_id)
-    
-    if not capsule:
-        return jsonify({'error': 'Capsule not found'}), 404
-    
-    return jsonify(capsule)
+@app.route('/api/v1/capsules/<capsule_id>', methods=['GET', 'PUT', 'DELETE'])
+def capsule_detail(capsule_id):
+    db = get_db()
+    try:
+        capsule = db.query(Capsule).filter(Capsule.id == capsule_id).first()
+        if not capsule:
+            return jsonify({'error': 'Not found'}), 404
+        
+        if request.method == 'GET':
+            return jsonify(capsule.to_dict())
+        
+        elif request.method == 'PUT':
+            data = request.get_json()
+            if 'current_value' in data:
+                capsule.current_value = float(data['current_value'])
+            if 'status' in data:
+                capsule.status = data['status']
+            capsule.updated_at = datetime.utcnow()
+            db.commit()
+            db.refresh(capsule)
+            return jsonify(capsule.to_dict())
+        
+        else:  # DELETE
+            db.delete(capsule)
+            db.commit()
+            return '', 204
+    finally:
+        db.close()
 
-@app.route('/api/v1/capsules', methods=['POST'])
-def create_capsule():
-    """Create a new capsule"""
-    data = request.get_json()
-    
-    # Validate required fields
-    required = ['client_id', 'capsule_type', 'goal_amount', 'goal_date']
-    for field in required:
-        if field not in data:
-            return jsonify({'error': f'Missing required field: {field}'}), 400
-    
-    # Generate ID
-    capsule_id = f"cap_{len(capsules_db) + 1}"
-    
-    # Create capsule
-    capsule = {
-        'id': capsule_id,
-        'client_id': data['client_id'],
-        'capsule_type': data['capsule_type'],
-        'goal_amount': data['goal_amount'],
-        'goal_date': data['goal_date'],
-        'current_value': 0.0,
-        'status': 'created',
-        'created_at': datetime.utcnow().isoformat(),
-        'updated_at': datetime.utcnow().isoformat()
-    }
-    
-    capsules_db[capsule_id] = capsule
-    
-    logger.info(f"Created capsule: {capsule_id} for client: {data['client_id']}")
-    
-    return jsonify(capsule), 201
+# ===== NEW TRANSACTION ENDPOINTS =====
 
-@app.route('/api/v1/capsules/<capsule_id>', methods=['PUT'])
-def update_capsule(capsule_id):
-    """Update a capsule"""
-    capsule = capsules_db.get(capsule_id)
+@app.route('/api/v1/capsules/<capsule_id>/transactions', methods=['GET', 'POST'])
+def transactions(capsule_id):
+    if request.method == 'GET':
+        db = get_db()
+        try:
+            trans = db.query(Transaction).filter(
+                Transaction.capsule_id == capsule_id
+            ).order_by(Transaction.transaction_date.desc()).all()
+            return jsonify([t.to_dict() for t in trans])
+        finally:
+            db.close()
     
-    if not capsule:
-        return jsonify({'error': 'Capsule not found'}), 404
-    
-    data = request.get_json()
-    
-    # Update fields
-    for key in ['goal_amount', 'goal_date', 'current_value', 'status']:
-        if key in data:
-            capsule[key] = data[key]
-    
-    capsule['updated_at'] = datetime.utcnow().isoformat()
-    
-    logger.info(f"Updated capsule: {capsule_id}")
-    
-    return jsonify(capsule)
+    else:  # POST - Create transaction
+        db = get_db()
+        try:
+            data = request.get_json()
+            trans_id = f"trans_{uuid.uuid4().hex[:8]}"
+            
+            transaction = Transaction(
+                id=trans_id,
+                capsule_id=capsule_id,
+                transaction_type=data['transaction_type'],
+                amount=float(data['amount']),
+                description=data.get('description', ''),
+                transaction_date=datetime.utcnow()
+            )
+            
+            # Update capsule value
+            capsule = db.query(Capsule).filter(Capsule.id == capsule_id).first()
+            if capsule:
+                if data['transaction_type'] in ['deposit', 'dividend', 'interest']:
+                    capsule.current_value += float(data['amount'])
+                elif data['transaction_type'] in ['withdrawal', 'fee']:
+                    capsule.current_value -= float(data['amount'])
+                capsule.updated_at = datetime.utcnow()
+            
+            db.add(transaction)
+            db.commit()
+            db.refresh(transaction)
+            
+            return jsonify(transaction.to_dict()), 201
+        finally:
+            db.close()
 
-@app.route('/api/v1/capsules/<capsule_id>', methods=['DELETE'])
-def delete_capsule(capsule_id):
-    """Delete a capsule"""
-    if capsule_id not in capsules_db:
-        return jsonify({'error': 'Capsule not found'}), 404
+# ===== NEW ALLOCATION ENDPOINTS =====
+
+@app.route('/api/v1/capsules/<capsule_id>/allocations', methods=['GET', 'POST'])
+def allocations(capsule_id):
+    if request.method == 'GET':
+        db = get_db()
+        try:
+            allocs = db.query(Allocation).filter(
+                Allocation.capsule_id == capsule_id
+            ).all()
+            return jsonify([a.to_dict() for a in allocs])
+        finally:
+            db.close()
     
-    del capsules_db[capsule_id]
-    
-    logger.info(f"Deleted capsule: {capsule_id}")
-    
-    return '', 204
+    else:  # POST - Set allocation
+        db = get_db()
+        try:
+            data = request.get_json()
+            alloc_id = f"alloc_{uuid.uuid4().hex[:8]}"
+            
+            allocation = Allocation(
+                id=alloc_id,
+                capsule_id=capsule_id,
+                asset_class=data['asset_class'],
+                target_percentage=float(data['target_percentage']),
+                current_percentage=float(data.get('current_percentage', 0)),
+                current_value=float(data.get('current_value', 0))
+            )
+            
+            db.add(allocation)
+            db.commit()
+            db.refresh(allocation)
+            
+            return jsonify(allocation.to_dict()), 201
+        finally:
+            db.close()
+
+# ===== NEW REBALANCING ENDPOINTS =====
+
+@app.route('/api/v1/capsules/<capsule_id>/rebalance/check', methods=['GET'])
+def check_rebalance(capsule_id):
+    """Check if rebalancing is needed"""
+    needed, drift = rebalancer.check_rebalance_needed(capsule_id)
+    return jsonify({
+        'capsule_id': capsule_id,
+        'rebalance_needed': needed,
+        'max_drift': round(drift, 2),
+        'threshold': rebalancer.threshold
+    })
+
+@app.route('/api/v1/capsules/<capsule_id>/rebalance', methods=['POST'])
+def do_rebalance(capsule_id):
+    """Execute rebalancing"""
+    result = rebalancer.rebalance(capsule_id)
+    if result:
+        return jsonify(result), 200
+    return jsonify({'error': 'Rebalance failed'}), 500
+
+# ===== NEW PERFORMANCE ENDPOINTS =====
+
+@app.route('/api/v1/capsules/<capsule_id>/performance', methods=['GET'])
+def performance(capsule_id):
+    """Get performance metrics"""
+    period = request.args.get('period', 'daily')
+    perf = calculate_performance(capsule_id, period)
+    if perf:
+        return jsonify(perf)
+    return jsonify({'error': 'Insufficient data'}), 404
 
 if __name__ == '__main__':
-    logger.info("Starting Capsules Service...")
+    logger.info("Starting Capsules Service v3.0...")
     app.run(host='0.0.0.0', port=8000, debug=True)
