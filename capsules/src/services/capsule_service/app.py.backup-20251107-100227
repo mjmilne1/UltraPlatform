@@ -252,31 +252,4 @@ try:
     print("✓ Australian Tax Service registered")
 except Exception as e:
     print(f"⚠ Tax Service: {e}")
-
-# ============================================================================
-# AUSTRALIAN TAX SERVICE
-# ============================================================================
-try:
-    import sys
-    sys.path.append('../tax_service')
-    from __init__ import tax_bp
-    app.register_blueprint(tax_bp)
-    print("✓ Australian Tax Service registered")
-except Exception as e:
-    print(f"⚠ Tax Service: {e}")
-
-# ============================================================================
-# AUSTRALIAN TAX SERVICE (ATO COMPLIANT)
-# Part IVA Anti-Avoidance | 45-Day Rule | Asset Switching
-# ============================================================================
-try:
-    import sys
-    sys.path.append('../tax_service')
-    from __init__ import tax_bp
-    app.register_blueprint(tax_bp)
-    print("✓ Australian Tax Service registered (ATO Part IVA Compliant)")
-except Exception as e:
-    print(f"⚠ Tax Service: {e}")
 if __name__ == '__main__':
-    logger.info("Starting Capsules Service v3.0...")
-    app.run(host='0.0.0.0', port=8000, debug=True)
