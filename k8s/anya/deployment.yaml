@@ -1,0 +1,188 @@
+﻿# Anya Service - Kubernetes Deployment
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: anya
+  labels:
+    name: anya
+    
+---
+# ConfigMap for Anya Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: anya-config
+  namespace: anya
+data:
+  MODEL: "gpt-4-turbo-preview"
+  TEMPERATURE: "0.7"
+  MAX_TOKENS: "4096"
+  PINECONE_INDEX: "anya-knowledge"
+  NEO4J_URI: "bolt://neo4j-service:7687"
+  LOG_LEVEL: "INFO"
+
+---
+# Secret for API Keys
+apiVersion: v1
+kind: Secret
+metadata:
+  name: anya-secrets
+  namespace: anya
+type: Opaque
+stringData:
+  OPENAI_API_KEY: "your-openai-api-key"
+  PINECONE_API_KEY: "your-pinecone-api-key"
+  PINECONE_ENVIRONMENT: "us-east-1-aws"
+  NEO4J_PASSWORD: "your-neo4j-password"
+
+---
+# Anya Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anya-service
+  namespace: anya
+  labels:
+    app: anya
+    component: service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: anya
+      component: service
+  template:
+    metadata:
+      labels:
+        app: anya
+        component: service
+    spec:
+      containers:
+      - name: anya
+        image: ultra-platform/anya:1.0.0
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: anya-secrets
+              key: OPENAI_API_KEY
+        - name: PINECONE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: anya-secrets
+              key: PINECONE_API_KEY
+        - name: PINECONE_ENVIRONMENT
+          valueFrom:
+            secretKeyRef:
+              name: anya-secrets
+              key: PINECONE_ENVIRONMENT
+        - name: NEO4J_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: anya-secrets
+              key: NEO4J_PASSWORD
+        envFrom:
+        - configMapRef:
+            name: anya-config
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+# Anya Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: anya-service
+  namespace: anya
+spec:
+  selector:
+    app: anya
+    component: service
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  type: ClusterIP
+
+---
+# HorizontalPodAutoscaler for Anya
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: anya-hpa
+  namespace: anya
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: anya-service
+  minReplicas: 3
+  maxReplicas: 50
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: anya_response_latency_ms
+      target:
+        type: AverageValue
+        averageValue: "2000"
+
+---
+# Ingress for Anya
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anya-ingress
+  namespace: anya
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+spec:
+  tls:
+  - hosts:
+    - api.ultra.com
+    secretName: anya-tls
+  rules:
+  - host: api.ultra.com
+    http:
+      paths:
+      - path: /api/v1/anya
+        pathType: Prefix
+        backend:
+          service:
+            name: anya-service
+            port:
+              number: 8000

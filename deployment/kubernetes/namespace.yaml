@@ -1,0 +1,17 @@
+﻿# ============================================================================
+# ANYA KUBERNETES NAMESPACE
+# ============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: anya
+  labels:
+    name: anya
+    environment: production
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: anya-api
+  namespace: anya

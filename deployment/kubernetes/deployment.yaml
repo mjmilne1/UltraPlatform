@@ -1,78 +1,189 @@
-﻿apiVersion: apps/v1
+﻿# ============================================================================
+# ANYA KUBERNETES DEPLOYMENT
+# ============================================================================
+apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ultraplatform
+  name: anya-api
+  namespace: anya
   labels:
-    app: ultraplatform
-    version: v2.0
+    app: anya
+    component: api
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: ultraplatform
+      app: anya
+      component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
-        app: ultraplatform
+        app: anya
+        component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
     spec:
+      serviceAccountName: anya-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
       containers:
-      - name: ultraplatform
-        image: ultraplatform:latest
+      - name: anya-api
+        image: anya:latest
+        imagePullPolicy: Always
+        
         ports:
-        - containerPort: 8080
-          name: web
-        - containerPort: 8001
-          name: trading
-        - containerPort: 8002
-          name: portfolio
-        - containerPort: 8003
-          name: analytics
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        
         env:
-        - name: ULTRA_ENV
+        - name: ENVIRONMENT
           value: "production"
-        - name: DATABASE_URL
+        - name: LOG_LEVEL
+          value: "info"
+        - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: ultra-secrets
-              key: database-url
+              name: anya-secrets
+              key: openai-api-key
+        - name: REDIS_HOST
+          value: "anya-redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: POSTGRES_HOST
+          value: "anya-postgres"
+        - name: POSTGRES_DB
+          value: "anya"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: anya-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: anya-secrets
+              key: postgres-password
+        
         resources:
-          limits:
-            cpu: "2"
-            memory: "4Gi"
           requests:
-            cpu: "1"
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
             memory: "2Gi"
+            cpu: "1000m"
+        
         livenessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 8000
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        
         readinessProbe:
           httpGet:
-            path: /ready
-            port: 8080
+            path: /health
+            port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      
+      volumes:
+      - name: config
+        configMap:
+          name: anya-config
+
 ---
+# ============================================================================
+# ANYA KUBERNETES SERVICE
+# ============================================================================
 apiVersion: v1
 kind: Service
 metadata:
-  name: ultraplatform-service
+  name: anya-api
+  namespace: anya
+  labels:
+    app: anya
+    component: api
 spec:
+  type: ClusterIP
   selector:
-    app: ultraplatform
+    app: anya
+    component: api
   ports:
-    - name: web
-      port: 80
-      targetPort: 8080
-    - name: trading
-      port: 8001
-      targetPort: 8001
-    - name: portfolio
-      port: 8002
-      targetPort: 8002
-    - name: analytics
-      port: 8003
-      targetPort: 8003
-  type: LoadBalancer
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+
+---
+# ============================================================================
+# HORIZONTAL POD AUTOSCALER
+# ============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: anya-api-hpa
+  namespace: anya
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: anya-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 60
+      selectPolicy: Min

@@ -1,24 +1,114 @@
-﻿version: '3.8'
+﻿# ============================================================================
+# ANYA AI ASSISTANT - DOCKER COMPOSE
+# ============================================================================
+version: '3.8'
 
 services:
-  ultraplatform:
-    build: .
+  # Anya API Service
+  anya-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: anya-api
     ports:
-      - '8000:8000'
+      - "8000:8000"
     environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ENVIRONMENT=production
-      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=info
+    volumes:
+      - ./modules:/app/modules
     depends_on:
       - redis
-      - rabbitmq
-      
+      - postgres
+    restart: unless-stopped
+    networks:
+      - anya-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis Cache
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
+    container_name: anya-redis
     ports:
-      - '6379:6379'
-      
-  rabbitmq:
-    image: rabbitmq:3-management
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - anya-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: anya-postgres
+    environment:
+      - POSTGRES_DB=anya
+      - POSTGRES_USER=anya
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-anya_secure_password}
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - anya-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anya"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: anya-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deployment/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+    networks:
+      - anya-network
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: anya-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - anya-network
+
+volumes:
+  redis-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  anya-network:
+    driver: bridge

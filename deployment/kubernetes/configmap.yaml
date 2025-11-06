@@ -1,0 +1,43 @@
+﻿# ============================================================================
+# ANYA KUBERNETES CONFIGMAP
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: anya-config
+  namespace: anya
+data:
+  app.yaml: |
+    # Anya Application Configuration
+    service:
+      name: anya-api
+      version: 3.0.0
+    
+    server:
+      host: 0.0.0.0
+      port: 8000
+      workers: 4
+      timeout: 60
+    
+    features:
+      nlu_enabled: true
+      safety_checks: true
+      memory_system: true
+      multi_modal: true
+      human_handoff: true
+    
+    rate_limiting:
+      free_tier: 10
+      basic_tier: 100
+      premium_tier: 1000
+      enterprise_tier: 10000
+    
+    monitoring:
+      prometheus_enabled: true
+      metrics_port: 8000
+      log_level: info
+    
+    cache:
+      enabled: true
+      ttl: 300
+      max_size: 10000
