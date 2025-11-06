@@ -228,55 +228,6 @@ def performance(capsule_id):
         return jsonify(perf)
     return jsonify({'error': 'Insufficient data'}), 404
 
-# Onboarding Service
-try:
-    from onboarding_service import onboarding_bp
-    app.register_blueprint(onboarding_bp)
-    print("✓ Onboarding registered")
-except Exception as e:
-    print(f"✗ Error: {e}")
-
-# === ONBOARDING SERVICE ===
-# === ONBOARDING SERVICE ===
-try:
-    from onboarding_service import onboarding_bp
-    app.register_blueprint(onboarding_bp)
-    print("✓ Onboarding service registered")
-except Exception as e:
-    print(f"✗ Onboarding error: {e}")
-
 if __name__ == '__main__':
     logger.info("Starting Capsules Service v3.0...")
     app.run(host='0.0.0.0', port=8000, debug=True)
-
-# Institutional upgrade
-try:
-    from onboarding_service import onboarding_bp
-    app.register_blueprint(onboarding_bp)
-    print('Onboarding service registered')
-except Exception as e:
-    print(f'Warning: {e}')
-# === INSTITUTIONAL ONBOARDING SERVICE ===
-# ... all your routes ...
-
-@app.route('/api/v1/capsules/<capsule_id>/performance', methods=['GET'])
-def performance(capsule_id):
-    # ... code ...
-    return jsonify({'error': 'Insufficient data'}), 404
-
-# === INSTITUTIONAL ONBOARDING SERVICE ===
-print("DEBUG: About to load onboarding service...")
-try:
-    from onboarding_service import onboarding_bp
-    app.register_blueprint(onboarding_bp)
-    print("✓ Onboarding service registered")
-    
-    # DEBUG: Show all routes
-    print("\nRegistered routes:")
-    for rule in app.url_map.iter_rules():
-        print(f"  {rule.rule} -> {rule.endpoint}")
-    
-except Exception as e:
-    print(f"✗ Onboarding error: {e}")
-    import traceback
-    traceback.print_exc()

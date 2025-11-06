@@ -1,0 +1,4 @@
+﻿Flask==3.0.0
+Flask-CORS==4.0.0
+SQLAlchemy==2.0.23
+python-dateutil==2.8.2
