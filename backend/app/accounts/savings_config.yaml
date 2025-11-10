@@ -1,0 +1,52 @@
+# Savings Module Configuration
+
+savings:
+  default_product: "CMA_STANDARD"
+  
+  interest_calculation:
+    method: "compound_daily"
+    accrual_frequency: "daily"
+    posting_frequency: "monthly"
+    
+  ml_optimization:
+    enabled: true
+    model_type: "xgboost"
+    retrain_frequency: "weekly"
+    
+  rate_tiers:
+    - min_balance: 0
+      max_balance: 10000
+      rate_adjustment: -0.005
+    - min_balance: 10000
+      max_balance: 50000
+      rate_adjustment: 0.000
+    - min_balance: 50000
+      max_balance: 100000
+      rate_adjustment: 0.003
+    - min_balance: 100000
+      max_balance: null
+      rate_adjustment: 0.005
+  
+  batch_jobs:
+    interest_accrual:
+      schedule: "0 0 * * *"
+      enabled: true
+    interest_posting:
+      schedule: "50 23 L * *"
+      enabled: true
+    rate_optimization:
+      schedule: "0 6 * * *"
+      enabled: true
+
+datamesh:
+  account_data_product:
+    enabled: true
+    real_time_sync: true
+
+mcp:
+  server_uri: "mcp://turingwealth/savings-accounts"
+  tools_enabled:
+    - create_savings_account
+    - calculate_interest
+    - post_interest
+    - get_account_balance
