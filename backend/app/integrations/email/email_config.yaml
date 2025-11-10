@@ -1,0 +1,243 @@
+# Email Service Configuration
+
+email:
+  # Provider Configuration
+  provider: "sendgrid"  # sendgrid, aws_ses, smtp
+  
+  sendgrid:
+    api_key: "${SENDGRID_API_KEY}"
+    sandbox_mode: false
+    
+  aws_ses:
+    region: "us-east-1"
+    access_key: "${AWS_ACCESS_KEY}"
+    secret_key: "${AWS_SECRET_KEY}"
+    
+  smtp:
+    host: "smtp.gmail.com"
+    port: 587
+    username: "${SMTP_USERNAME}"
+    password: "${SMTP_PASSWORD}"
+    use_tls: true
+    
+  # Sender Configuration
+  sender:
+    from_email: "noreply@turingwealth.com"
+    from_name: "TuringWealth"
+    reply_to: "support@turingwealth.com"
+    
+  # Queue Configuration
+  queue:
+    enabled: true
+    max_queue_size: 1000
+    batch_size: 50
+    processing_interval_seconds: 5
+    
+  # Retry Configuration
+  retry:
+    enabled: true
+    max_retries: 3
+    retry_delay_seconds: 300
+    exponential_backoff: true
+    
+  # Tracking
+  tracking:
+    open_tracking: true
+    click_tracking: true
+    unsubscribe_tracking: true
+    
+  # Rate Limiting
+  rate_limiting:
+    enabled: true
+    max_emails_per_minute: 100
+    max_emails_per_hour: 1000
+    max_emails_per_day: 10000
+    
+  # Templates
+  templates:
+    directory: "backend/app/integrations/email/templates"
+    auto_reload: true
+    cache_enabled: true
+    
+    # Template Configuration
+    welcome:
+      enabled: true
+      priority: "high"
+      
+    report_ready:
+      enabled: true
+      priority: "medium"
+      
+    monthly_statement:
+      enabled: true
+      priority: "high"
+      attach_pdf: true
+      
+    approval_request:
+      enabled: true
+      priority: "high"
+      
+    alert:
+      enabled: true
+      priority: "urgent"
+      
+  # Email Types
+  email_types:
+    transactional:
+      enabled: true
+      track_opens: true
+      track_clicks: true
+      priority: "high"
+      
+    notification:
+      enabled: true
+      track_opens: true
+      track_clicks: true
+      priority: "medium"
+      
+    report:
+      enabled: true
+      track_opens: true
+      track_clicks: false
+      priority: "medium"
+      
+    marketing:
+      enabled: true
+      track_opens: true
+      track_clicks: true
+      priority: "low"
+      respect_unsubscribes: true
+      
+    alert:
+      enabled: true
+      track_opens: false
+      track_clicks: false
+      priority: "urgent"
+      
+  # AI Features
+  ai:
+    content_generation:
+      enabled: true
+      personalization: true
+      
+    subject_optimization:
+      enabled: true
+      ab_testing: true
+      
+    send_time_optimization:
+      enabled: true
+      use_ml: true
+      
+  # Personalization
+  personalization:
+    enabled: true
+    
+    features:
+      - recipient_name
+      - send_time_optimization
+      - content_preferences
+      - engagement_history
+      
+    ml_model:
+      enabled: true
+      retrain_frequency: "weekly"
+      min_data_points: 100
+      
+  # Bounce Handling
+  bounce_handling:
+    enabled: true
+    
+    hard_bounce:
+      action: "unsubscribe"
+      notify_admin: true
+      
+    soft_bounce:
+      action: "retry"
+      max_retries: 3
+      
+    complaint:
+      action: "unsubscribe"
+      notify_admin: true
+      
+  # Unsubscribe
+  unsubscribe:
+    enabled: true
+    one_click_unsubscribe: true
+    respect_globally: true
+    
+  # Analytics
+  analytics:
+    enabled: true
+    
+    track:
+      - sent
+      - delivered
+      - opened
+      - clicked
+      - bounced
+      - unsubscribed
+      
+    reporting:
+      daily_summary: true
+      weekly_report: true
+      monthly_report: true
+      
+  # DataMesh Integration
+  datamesh:
+    enabled: true
+    publish_events: true
+    
+    events:
+      - EMAIL_QUEUED
+      - EMAIL_SENT
+      - EMAIL_DELIVERED
+      - EMAIL_OPENED
+      - EMAIL_CLICKED
+      - EMAIL_BOUNCED
+      - EMAIL_FAILED
+      
+  # MCP Integration
+  mcp:
+    server_uri: "mcp://turingwealth/email"
+    tools_enabled:
+      - send_email
+      - send_from_template
+      - send_welcome_email
+      - send_report_email
+      - send_approval_notification
+      - send_alert_email
+      
+  # Agents
+  agents:
+    content_generation:
+      enabled: true
+      use_ai: true
+      
+    send_time_optimizer:
+      enabled: true
+      run_frequency: "hourly"
+      
+  # Compliance
+  compliance:
+    include_unsubscribe_link: true
+    include_physical_address: true
+    gdpr_compliant: true
+    
+    physical_address: |
+      TuringWealth Pty Ltd
+      Level 10, 123 Example Street
+      Sydney NSW 2000
+      Australia
+      
+  # Testing
+  testing:
+    test_mode: false
+    test_email: "test@turingwealth.com"
+    
+  # Monitoring
+  monitoring:
+    enabled: true
+    alert_on_high_bounce_rate: true
+    bounce_rate_threshold: 0.05  # 5%
+    alert_on_low_delivery_rate: true
+    delivery_rate_threshold: 0.95  # 95%
