@@ -1,0 +1,253 @@
+# Slack Integration Configuration
+
+slack:
+  # API Configuration
+  api:
+    bot_token: "${SLACK_BOT_TOKEN}"
+    app_token: "${SLACK_APP_TOKEN}"
+    signing_secret: "${SLACK_SIGNING_SECRET}"
+    
+  # Workspace
+  workspace:
+    team_name: "TuringWealth"
+    default_channel: "#general"
+    
+  # Webhooks
+  webhooks:
+    enabled: true
+    default_webhook: "${SLACK_WEBHOOK_URL}"
+    
+  # Channels Configuration
+  channels:
+    operations:
+      name: "#operations"
+      purpose: "Operational notifications"
+      priority_filter: "all"
+      enabled: true
+      
+    alerts:
+      name: "#alerts"
+      purpose: "Critical alerts"
+      priority_filter: "high_and_above"
+      enabled: true
+      mentions: ["@oncall", "@manager"]
+      
+    compliance:
+      name: "#compliance"
+      purpose: "Compliance issues"
+      priority_filter: "medium_and_above"
+      enabled: true
+      mentions: ["@compliance-team"]
+      
+    reports:
+      name: "#reports"
+      purpose: "Report notifications"
+      priority_filter: "all"
+      enabled: true
+      
+    approvals:
+      name: "#approvals"
+      purpose: "Approval requests"
+      priority_filter: "all"
+      enabled: true
+      mentions: ["@approvers"]
+      
+    support:
+      name: "#support"
+      purpose: "User support"
+      priority_filter: "all"
+      enabled: true
+      
+  # Slash Commands
+  commands:
+    enabled: true
+    command_prefix: "/tw"
+    
+    available_commands:
+      - name: "help"
+        description: "Show available commands"
+        
+      - name: "portfolio"
+        description: "Show portfolio summary"
+        requires_params: true
+        
+      - name: "report"
+        description: "Generate report"
+        requires_params: true
+        
+      - name: "approve"
+        description: "Approve request"
+        requires_params: true
+        requires_permission: "approver"
+        
+      - name: "status"
+        description: "System status"
+        
+      - name: "pending"
+        description: "Show pending approvals"
+        requires_permission: "approver"
+        
+  # Notifications
+  notifications:
+    # Real-time notifications
+    real_time:
+      enabled: true
+      batch_delay_seconds: 5  # Batch messages within 5 seconds
+      
+    # Notification types
+    types:
+      cob_complete:
+        enabled: true
+        channel: "#operations"
+        priority: "medium"
+        
+      high_risk_transaction:
+        enabled: true
+        channel: "#alerts"
+        priority: "critical"
+        mentions: ["@risk-team"]
+        
+      approval_required:
+        enabled: true
+        channel: "#approvals"
+        priority: "high"
+        
+      report_ready:
+        enabled: true
+        channel: "#reports"
+        priority: "medium"
+        
+      compliance_violation:
+        enabled: true
+        channel: "#compliance"
+        priority: "high"
+        mentions: ["@compliance-team"]
+        
+      system_error:
+        enabled: true
+        channel: "#alerts"
+        priority: "critical"
+        mentions: ["@oncall"]
+        
+  # Interactive Components
+  interactive:
+    enabled: true
+    
+    buttons:
+      approve:
+        style: "primary"
+        text: "? Approve"
+        
+      reject:
+        style: "danger"
+        text: "? Reject"
+        
+      view_details:
+        style: "default"
+        text: "View Details"
+        
+    modals:
+      enabled: true
+      timeout_seconds: 300
+      
+  # AI Features
+  ai:
+    intent_classification:
+      enabled: true
+      confidence_threshold: 0.7
+      fallback_to_human: true
+      
+    auto_response:
+      enabled: true
+      response_delay_seconds: 2
+      
+    message_routing:
+      enabled: true
+      smart_routing: true
+      
+  # Message Formatting
+  formatting:
+    use_blocks: true
+    use_markdown: true
+    emoji_enabled: true
+    
+    priority_emojis:
+      low: "??"
+      medium: "??"
+      high: "??"
+      critical: "??"
+      
+    branding:
+      footer_text: "TuringWealth"
+      footer_icon: "https://turingwealth.com/logo-small.png"
+      
+  # Rate Limiting
+  rate_limiting:
+    enabled: true
+    max_messages_per_minute: 60
+    max_commands_per_user_per_minute: 10
+    
+  # Analytics
+  analytics:
+    track_messages: true
+    track_commands: true
+    track_interactions: true
+    
+    daily_summary:
+      enabled: true
+      send_to: "#operations"
+      send_time: "09:00"
+      
+  # DataMesh Integration
+  datamesh:
+    enabled: true
+    publish_events: true
+    
+    events:
+      - SLACK_MESSAGE_SENT
+      - SLACK_COMMAND_RECEIVED
+      - SLACK_INTERACTION_PROCESSED
+      - SLACK_ALERT_TRIGGERED
+      
+  # MCP Integration
+  mcp:
+    server_uri: "mcp://turingwealth/slack"
+    tools_enabled:
+      - send_notification
+      - send_alert
+      - send_approval_request
+      - send_report_notification
+      
+  # Agents
+  agents:
+    message_routing:
+      enabled: true
+      auto_classify: true
+      auto_respond: true
+      
+    analytics:
+      enabled: true
+      run_frequency: "daily"
+      
+  # Security
+  security:
+    verify_signatures: true
+    require_ssl: true
+    whitelist_channels: []
+    blacklist_users: []
+    
+  # Error Handling
+  error_handling:
+    retry_failed_messages: true
+    max_retries: 3
+    retry_delay_seconds: 60
+    
+    notify_on_failure:
+      enabled: true
+      notify_channel: "#alerts"
+      
+  # Performance
+  performance:
+    async_processing: true
+    queue_size: 1000
+    worker_threads: 5
