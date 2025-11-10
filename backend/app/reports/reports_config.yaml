@@ -1,0 +1,174 @@
+# Reporting Engine Configuration
+
+reporting:
+  output_directory: "/mnt/user-data/reports"
+  temp_directory: "/tmp/reports"
+  
+  generation:
+    max_concurrent: 5
+    timeout_seconds: 300
+    retry_on_failure: true
+    max_retries: 2
+    
+  formats:
+    default: "pdf"
+    supported:
+      - pdf
+      - excel
+      - csv
+      - html
+      - json
+      
+  branding:
+    company_name: "TuringWealth"
+    logo_path: "/assets/logo.png"
+    primary_color: "#1E40AF"
+    secondary_color: "#3B82F6"
+    
+ai_features:
+  insights:
+    enabled: true
+    min_confidence: 0.7
+    max_insights_per_report: 5
+    
+  recommendations:
+    enabled: true
+    personalization: true
+    risk_aware: true
+    
+  ml_attribution:
+    enabled: true
+    model_type: "regression"
+    retrain_frequency: "monthly"
+    
+report_types:
+  monthly_statement:
+    enabled: true
+    default_format: "pdf"
+    ai_insights: true
+    include_sections:
+      - summary
+      - performance
+      - holdings
+      - transactions
+      - fees
+      - insights
+      
+  performance_summary:
+    enabled: true
+    default_format: "pdf"
+    ai_insights: true
+    ml_attribution: true
+    benchmarks:
+      - "ASX 200"
+      - "ASX 300"
+      
+  tax_summary:
+    enabled: true
+    default_format: "pdf"
+    tax_year_start: "07-01"  # July 1
+    tax_year_end: "06-30"    # June 30
+    include_cgt_discount: true
+    
+  portfolio_valuation:
+    enabled: true
+    default_format: "excel"
+    real_time_pricing: true
+    
+  transaction_history:
+    enabled: true
+    default_format: "csv"
+    max_transactions: 1000
+    
+scheduling:
+  enabled: true
+  timezone: "Australia/Sydney"
+  
+  default_schedules:
+    monthly_statement: "0 0 1 * *"  # 1st of month
+    quarterly_statement: "0 0 1 1,4,7,10 *"  # Quarterly
+    annual_statement: "0 0 1 7 *"  # July 1 (FY end)
+    
+  delivery:
+    email_enabled: true
+    auto_delivery: true
+    
+export:
+  pdf:
+    engine: "reportlab"  # or "weasyprint"
+    page_size: "A4"
+    quality: "high"
+    compress: true
+    
+  excel:
+    engine: "openpyxl"
+    include_formulas: true
+    include_charts: true
+    freeze_panes: true
+    
+  csv:
+    delimiter: ","
+    encoding: "utf-8"
+    include_headers: true
+    
+datamesh:
+  report_data_product:
+    enabled: true
+    real_time_sync: true
+    publish_events: true
+    
+  events:
+    - REPORT_GENERATION_STARTED
+    - REPORT_GENERATION_COMPLETED
+    - REPORT_DELIVERED
+    - SCHEDULED_REPORT_EXECUTED
+    
+mcp:
+  server_uri: "mcp://turingwealth/reports"
+  tools_enabled:
+    - generate_report
+    - generate_monthly_statement
+    - generate_performance_report
+    - generate_tax_summary
+    - get_report_status
+    - schedule_report
+    
+agents:
+  insights_generation:
+    enabled: true
+    run_on_report_generation: true
+    
+  report_optimization:
+    enabled: true
+    optimize_templates: true
+    
+performance:
+  caching:
+    enabled: true
+    ttl_seconds: 3600
+    
+  async_generation:
+    enabled: true
+    use_celery: true
+    
+notifications:
+  email:
+    enabled: true
+    send_on_completion: true
+    send_on_failure: true
+    
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#reports"
+    
+storage:
+  retention_days: 365
+  archive_after_days: 90
+  auto_cleanup: true
+  
+compliance:
+  watermark_reports: true
+  include_timestamp: true
+  include_disclaimer: true
+  disclaimer_text: "This report is confidential and intended solely for the use of the individual or entity to whom it is addressed."
