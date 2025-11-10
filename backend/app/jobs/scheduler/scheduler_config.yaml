@@ -1,0 +1,99 @@
+# Batch Job Scheduler Configuration
+
+scheduler:
+  timezone: "Australia/Sydney"
+  
+  cob:
+    enabled: true
+    start_time: "18:00"  # 6:00 PM AEST
+    auto_execute: true
+    require_approval: false
+    
+  execution:
+    max_concurrent_jobs: 5
+    default_timeout_seconds: 3600
+    max_retries: 3
+    retry_delay_seconds: 300
+    
+  monitoring:
+    enable_real_time: true
+    alert_on_failure: true
+    alert_on_timeout: true
+    dashboard_url: "http://localhost:3000/scheduler"
+    
+  ml_optimization:
+    enabled: true
+    retrain_frequency: "weekly"
+    min_historical_samples: 10
+    
+  performance:
+    track_metrics: true
+    optimize_schedules: true
+    auto_adjust_timeouts: true
+    
+datamesh:
+  job_data_product:
+    enabled: true
+    real_time_sync: true
+    publish_events: true
+    
+mcp:
+  server_uri: "mcp://turingwealth/scheduler"
+  tools_enabled:
+    - execute_job
+    - execute_cob
+    - get_job_status
+    - get_cob_status
+    - predict_job_duration
+    - cancel_job
+    - list_active_jobs
+    
+agents:
+  job_optimization:
+    enabled: true
+    run_frequency: "daily"
+    optimize_schedules: true
+    optimize_sequences: true
+    
+notifications:
+  email:
+    enabled: true
+    recipients:
+      - ops@turingwealth.com
+    send_on_failure: true
+    send_on_success: false
+    
+  slack:
+    enabled: true
+    webhook_url: ""
+    channel: "#operations"
+    
+jobs:
+  # COB Process
+  cob_trade_settlements:
+    priority: "critical"
+    timeout: 1800
+    
+  cob_portfolio_valuation:
+    priority: "critical"
+    timeout: 3600
+    
+  cob_fee_calculation:
+    priority: "high"
+    timeout: 1800
+    
+  cob_interest_accrual:
+    priority: "high"
+    timeout: 1800
+    
+  cob_report_generation:
+    priority: "medium"
+    timeout: 3600
+    
+  cob_reconciliation:
+    priority: "high"
+    timeout: 1800
+    
+  cob_ledger_close:
+    priority: "critical"
+    timeout: 900
