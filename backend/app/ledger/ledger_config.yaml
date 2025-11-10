@@ -1,0 +1,78 @@
+# Ledger Module Configuration
+
+ledger:
+  # Australian Financial Year: 1 July - 30 June
+  fiscal_year_start: "07-01"  # July 1st
+  fiscal_year_end: "06-30"    # June 30th
+  
+  jurisdiction: "AU"
+  currency: "AUD"
+  
+  journal_entry:
+    auto_post: true             # Auto-post entries (vs manual approval)
+    rounding_precision: 2       # Decimal places
+    allow_backdating: false     # Prevent backdated entries
+    max_backdate_days: 0
+    
+  validation:
+    enforce_balance: true       # Entries must balance
+    require_description: true
+    min_description_length: 10
+    
+  period_closure:
+    auto_close_month_end: false  # Manual month-end
+    auto_close_year_end: false   # Manual year-end (30 June)
+    require_approval: true
+    
+    # Australian tax year-end (30 June)
+    tax_year_end: "06-30"
+    
+  anomaly_detection:
+    enabled: true
+    large_amount_threshold: 100000  # Flag entries > $100k AUD
+    after_hours_check: true
+    weekend_check: true
+    
+  reporting:
+    default_format: "pdf"
+    include_header_accounts: false  # Exclude summary accounts from reports
+    
+    # Australian compliance reports
+    bas_reporting: true           # Business Activity Statement
+    eofy_reporting: true          # End of Financial Year reports
+    
+  compliance:
+    afsl_compliant: true          # Australian Financial Services License
+    asic_reporting: true          # ASIC regulatory reporting
+    abn: ""                       # Australian Business Number
+    acn: ""                       # Australian Company Number
+    
+datamesh:
+  ledger_data_product:
+    enabled: true
+    real_time_sync: true
+    
+mcp:
+  server_uri: "mcp://turingwealth/ledger"
+  tools_enabled:
+    - post_journal_entry
+    - post_trade_settlement
+    - post_management_fee
+    - generate_trial_balance
+    - generate_balance_sheet
+    - generate_income_statement
+    - close_accounting_period
+    - generate_bas_report
+    - generate_eofy_report
+
+agents:
+  anomaly_detection:
+    enabled: true
+    run_frequency: "daily"
+    alert_high_severity: true
+    
+  # Australian tax compliance
+  ato_compliance:
+    enabled: true
+    check_gst: true
+    check_payg: true
