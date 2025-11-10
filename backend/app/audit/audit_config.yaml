@@ -1,0 +1,158 @@
+# Audit Trail & Maker-Checker Configuration
+
+audit:
+  immutable_logging: true
+  chain_verification: true
+  
+  retention:
+    audit_trail_years: 7  # ASIC requirement
+    approval_requests_years: 7
+    compliance_violations_years: 10
+    
+  integrity:
+    checksum_algorithm: "sha256"
+    verify_chain_on_startup: true
+    verify_chain_frequency: "daily"
+    
+maker_checker:
+  enabled: true
+  
+  approval_requirements:
+    # Financial thresholds
+    transaction_above_100k: 2  # 2 approvals
+    transaction_above_500k: 3  # 3 approvals
+    
+    # Entity-based
+    client_creation: 1
+    client_deletion: 2
+    account_creation: 1
+    account_closure: 2
+    journal_entry_manual: 2
+    fee_structure_change: 2
+    
+  approval_expiry:
+    default_days: 7
+    high_risk_days: 3
+    critical_risk_days: 1
+    
+  self_approval:
+    allowed: false  # Maker cannot approve own request
+    
+segregation_of_duties:
+  enabled: true
+  enforcement_level: "block"  # or "warning"
+  
+  rules:
+    - name: "Maker-Checker Trading"
+      conflicting: ["trade.execute", "trade.approve"]
+    - name: "Custody-Trading Separation"
+      conflicting: ["custody.manage", "trade.execute"]
+    - name: "Accounting-Operations"
+      conflicting: ["journal.post", "trade.execute"]
+      
+risk_scoring:
+  ml_enabled: true
+  model_type: "xgboost"
+  retrain_frequency: "weekly"
+  
+  thresholds:
+    low: 0.3
+    medium: 0.5
+    high: 0.7
+    critical: 0.9
+    
+  factors:
+    change_type_weight: 0.25
+    entity_type_weight: 0.20
+    amount_weight: 0.30
+    time_context_weight: 0.10
+    user_history_weight: 0.15
+    
+compliance_monitoring:
+  enabled: true
+  
+  checks:
+    after_hours_approvals: true
+    rubber_stamping: true  # Approvals < 30 seconds
+    approval_velocity: true
+    expired_requests: true
+    segregation_of_duties: true
+    
+  alerts:
+    high_risk_changes: true
+    compliance_violations: true
+    suspicious_patterns: true
+    
+cqrs:
+  enabled: true
+  command_validation: true
+  query_caching: true
+  event_sourcing: true
+  
+datamesh:
+  audit_data_product:
+    enabled: true
+    real_time_sync: true
+    publish_events: true
+    
+  events:
+    - AUDIT_ENTRY_CREATED
+    - APPROVAL_REQUEST_CREATED
+    - APPROVAL_GRANTED
+    - APPROVAL_REJECTED
+    - COMPLIANCE_VIOLATION_DETECTED
+    - HIGH_RISK_CHANGE_DETECTED
+    
+mcp:
+  server_uri: "mcp://turingwealth/audit"
+  tools_enabled:
+    - create_approval_request
+    - approve_request
+    - reject_request
+    - get_pending_approvals
+    - get_audit_trail
+    - verify_audit_chain
+    - get_risk_score
+    - get_compliance_report
+    
+agents:
+  compliance_monitoring:
+    enabled: true
+    run_frequency: "daily"
+    run_time: "08:00"
+    
+  risk_analysis:
+    enabled: true
+    continuous_monitoring: true
+    
+notifications:
+  email:
+    enabled: true
+    recipients:
+      - compliance@turingwealth.com
+      - risk@turingwealth.com
+    
+    send_on:
+      - high_risk_change
+      - compliance_violation
+      - approval_request_high_risk
+      
+  slack:
+    enabled: true
+    webhook_url: ""
+    channel: "#compliance"
+    
+afsl_compliance:
+  enabled: true
+  
+  requirements:
+    audit_retention_years: 7
+    maker_checker_financial: true
+    segregation_of_duties: true
+    change_justification: true
+    approval_evidence: true
+    
+  reporting:
+    generate_monthly: true
+    generate_quarterly: true
+    generate_annual: true
